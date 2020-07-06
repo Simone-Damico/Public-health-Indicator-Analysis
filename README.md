@@ -1,6 +1,6 @@
-# Public-health-Indicator-Analysis
-In this paper we define the indicator *Breast tumor removal 
-surgery within 60 days from the date of diagnosis*. The 
+# Public Health Indicator Analysis
+In this project the indicator *Breast tumor removal surgery 
+within 60 days from the date of diagnosis* is defined. The 
 indicator for each hospital structure present in the data 
 is analyzed and the association at individual level between 
 the level of education and the work and the value of the indicator is 
