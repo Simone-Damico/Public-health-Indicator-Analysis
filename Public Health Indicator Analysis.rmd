@@ -1,0 +1,357 @@
+---
+title: Public Health Indicator Analysis
+date: 6/25/20
+output: html_notebook
+---
+### Import Libraries
+```{r}
+library(ggplot2)
+library(Epi)
+library(DescTools)
+```
+
+### Import dataset
+```{r}
+# import dataset
+df_anagrafica <- read.csv2("DatiAnagrafici.csv", sep = ";", header = TRUE, na="")
+df_tumors <- read.csv2("RegistroTumori.csv", sep = ";", header = TRUE, na="")
+df_sdo <- read.csv2("SDO.csv", sep = ";", header = TRUE, na="")
+```
+
+### Point 1
+Review the datasets and report descriptive statistics in a table for each dataset. Report minimum and maximum observation dates for datasets 2 and 3. Pay attention to the possibility of missing data, inconsistencies between dates, repeated records that could create problems in the linkage and analysis phase.
+Records with missing or repeated data or inconsistencies between dates (eg. Treatment date prior to the incidence date) must be reported in the report and then deleted for subsequent analyzes.
+
+Descriptive statistics are shown for each dataset.
+```{r}
+# Dataset anagrafica
+summary(df_anagrafica)
+```
+
+```{r}
+# Dataset tumori
+summary(df_tumors)
+```
+
+```{r}
+# Dataset SDO
+summary(df_sdo)
+```
+
+A cleaning phase of the various datasets is performed, eliminating null values and inconsistencies.
+
+#### Personal data
+In the dataset there are records with missing values for the columns *married*, *kids* and *education*
+that must be eliminated.
+```{r}
+# Record indices with missing values
+missing_anagrafica <- sort(unique(c(which(is.na(df_anagrafica$married)),
+                                    which(is.na(df_anagrafica$kids)),
+                                    which(is.na(df_anagrafica$education)))))
+
+# Record with missing values
+df_anagrafica[missing_anagrafica,]
+```
+
+Duplicate records are checked.
+```{r}
+df_anagrafica[duplicated(df_anagrafica),]
+```
+
+There are no duplicate records. The clean dataframe is defined for analysis.
+```{r}
+df_anagrafica_clear <- df_anagrafica[-missing_anagrafica,]
+```
+
+With a total of `r nrow(df_anagrafica_clear)` record.
+
+
+#### Tumors
+
+The *incidenza* column is changed to date
+```{r}
+df_tumors$incidenza = as.Date(df_tumors$incidenza, "%d/%m/%Y")
+```
+
+There are missing values for the *stadio*, *tipotumore* and *incidenza* columns
+```{r}
+missing_tumors <- sort(unique(c(which(is.na(df_tumors$Stadio)),
+                                which(is.na(df_tumors$tipotumore)),
+                                which(is.na(df_tumors$incidenza)))))
+
+# Record with missing values
+df_tumors[missing_tumors,]
+
+# Creating the dataframe without missing values
+df_tumors_clear <- df_tumors[-missing_tumors,]
+```
+
+In total the number of deleted records are `r length(missing_tumors)`. Duplicate records are checked.
+```{r}
+# Indices of duplicate records
+dup_ind <- duplicated(df_tumors_clear)
+
+# Duplicate records are
+df_tumors_clear[dup_ind,]
+
+# Elimination of duplicates
+df_tumors_clear <- unique(df_tumors_clear)
+```
+With a total of `r nrow(df_tumors_clear)` record.
+
+
+#### SDO
+The *dataprestazione* and *dimissione* columns are converted to dates.
+```{r}
+df_sdo$dataprestazione = as.Date(df_sdo$dataprestazione, "%d/%m/%Y")
+df_sdo$dimissione = as.Date(df_sdo$dimissione, "%d/%m/%Y")
+```
+
+Missing values for the columns *dataprestazione*, *dimissione*.
+```{r}
+missing_sdo <- sort(unique(c(which(is.na(df_sdo$dataprestazione)),
+                             which(is.na(df_sdo$dimissione)))))
+
+# Record with missing values
+df_sdo[missing_sdo,]
+
+# Creating the dataframe without missing values
+df_sdo_clear <- df_sdo[-missing_sdo,]
+```
+
+There are no duplicate records.
+```{r}
+# duplicate records
+df_sdo_clear[duplicated(df_sdo_clear),]
+```
+
+There are inconsistencies between the dates of the service and the dates of discharge.
+```{r}
+date_no_ok <- df_sdo_clear$dataprestazione > df_sdo_clear$dimissione
+
+# Records with inconsistent dates are
+df_sdo_clear[date_no_ok,]
+
+# These records are deleted
+df_sdo_clear <- df_sdo_clear[-date_no_ok,]
+```
+
+With a total of `r nrow(df_sdo_clear)` record.
+
+The minimum and maximum observation dates are calculated for the tumor and SDO datasets.
+```{r}
+# data for the tumor dataset
+max_data_tumors <- df_tumors_clear[which.max(df_tumors_clear$incidenza), 'incidenza']
+mim_data_tumors <- df_tumors_clear[which.min(df_tumors_clear$incidenza), 'incidenza']
+diff_tumors <- max_data_tumors - mim_data_tumors
+
+# performance date for the tumor dataset
+max_data_sdo_dataprestazione <- df_sdo_clear[which.max(df_sdo_clear$dataprestazione),'dataprestazione']
+mim_data_sdo_dataprestazione <- df_sdo_clear[which.min(df_sdo_clear$dataprestazione),'dataprestazione']
+diff_sdo_dataprestazione <- max_data_sdo_dataprestazione - mim_data_sdo_dataprestazione
+
+# discharge for the tumors dataset
+max_data_sdo_dimissione <- df_sdo_clear[which.max(df_sdo_clear$dimissione),'dimissione']
+mim_data_sdo_dimissione <- df_sdo_clear[which.min(df_sdo_clear$dimissione),'dimissione']
+diff_sdo_dimissione <- max_data_sdo_dimissione - mim_data_sdo_dimissione
+
+# Creating a complete dataframe
+df_date <- data.frame(c("tumor incidence date", "sdo performance date", "sdo discharge date"),
+                c(mim_data_tumors, mim_data_sdo_dataprestazione, mim_data_sdo_dimissione),
+                c(max_data_tumors, max_data_sdo_dataprestazione, max_data_sdo_dimissione),
+                c(diff_tumors, diff_sdo_dataprestazione, diff_sdo_dimissione))
+colnames(df_date) <- c("Dates", "Minimum date", "Maximum date", "Difference in days")
+
+df_date
+```
+
+### Point 2
+Record the linkage of the 3 datasets with the aim of building the indicator *Breast cancer removal surgery
+within 60 days from the diagnosis date* on a monthly basis for the incidents in January 1984.
+
+The linkage record of the three clean datasets is performed.
+```{r}
+df_merge <- merge(x = df_anagrafica_clear, y = df_tumors_clear, by = "idnum", all.x = TRUE)
+df_final <- merge(x = df_merge, y = df_sdo_clear, by = "idnum", all.x = TRUE)
+head(df_final)
+```
+
+It is verified that the treatment date is later than the tumor incidence date, records for which this is not true
+will be removed from the dataset.
+```{r}
+df_final[
+    !is.na(df_final$dataprestazione) &
+    !is.na(df_final$incidenza) &
+    df_final$dataprestazione < df_final$incidenza, ]
+
+```
+
+There is no record with this inconsistency.
+
+
+The indicator is built on a monthly basis for incidents in January 1984.
+The denominator is defined as the number of female subjects with breast cancer occurring between 01/01/1984
+and 31/01/1984, in stage I or II, who have undergone surgery
+```{r}
+# Calculation of the denominator
+den_ind <- which(
+  df_final$sex == "Female" & df_final$tipotumore == "seno" &
+  (df_final$Stadio == "Stadio I" | df_final$Stadio == "Stadio II") &
+  df_final$incidenza <= as.Date("31/01/1984", format = "%d/%m/%Y") &
+  df_final$incidenza >= as.Date("01/01/1984", format = "%d/%m/%Y") &
+  df_final$Prestazione == "chirurgica")
+
+den <- df_final[den_ind,]
+nrow(den)
+```
+
+The numerator is defined as the number of all subjects in the denominator with an interval between the incidence
+date and the intervention date ≤ 60 days.
+```{r}
+# Calculation of the denominator
+num_ind <- which(den$dataprestazione - den$incidenza <= 60)
+
+num <- den[num_ind,]
+
+nrow(num)
+```
+
+The indicator and confidence interval are calculated with a 95% confidence level.
+```{r}
+ind <- as.data.frame(BinomCI(nrow(num), nrow(den), conf.level = 0.95))
+
+ind
+```
+
+### Point 3
+Calculate the indicator for hospital and give a graphic representation, including the indicator calculated on the
+entire dataset as the reference value in the graph.
+```{r}
+num
+```
+The differentiated indicator per hospital is calculated
+```{r}
+# Grouping by hospital
+df_group_osp <- merge(aggregate(num$ospedale, by=list(Category=num$ospedale), FUN=length),
+                      aggregate(den$ospedale, by=list(Category=den$ospedale), FUN=length),
+                      by = "Category",)
+
+colnames(df_group_osp) <- c("Hospital", "Numerator", "Denominator")
+df_group_osp$Hospital <- as.factor(df_group_osp$Hospital)
+
+df_group_osp
+```
+
+For each hospital, the indicator and the relative confidence interval are calculated
+```{r}
+df_indicatore <- as.data.frame(BinomCI(df_group_osp$Numerator,
+                           df_group_osp$Denominator,
+                           conf.level = 0.95))
+
+df_group_osp$Indicator <- df_indicatore$est
+df_group_osp$lowerCI <- df_indicatore$lwr.ci
+df_group_osp$upperCI <- df_indicatore$upr.ci
+
+df_group_osp
+```
+
+The various calculated indicators are shown.
+```{r}
+p <- ggplot(df_group_osp, aes(x=Hospital, y=Indicator)) +
+  geom_col(fill="light blue")
+
+p + geom_text(aes(label = round(Indicator, 3)), size=6) +
+  annotate("text", x = 4.5, y = 0.85, size=6, fontface="bold",
+             label = paste0("General indicator: ", round(ind[1], 3),
+                            " - C.I. = (", round(ind[2], 3), ", ", round(ind[3], 3), ")")) +
+  geom_errorbar( aes(x=Hospital, ymin=lowerCI, ymax=upperCI), width=0.4, colour="black", alpha=0.4, size=1) +
+  ylab("Indicator value") +
+  theme(axis.title.x = element_text(face="bold", size=20),
+        axis.text.x  = element_text(vjust=0.5, face="bold", size=16),
+        axis.title.y = element_text(face="bold", size=20),
+        axis.text.y  = element_text(vjust=0.5, face="bold", size=16))
+```
+
+### Point 4
+Use the dataset obtained to evaluate the association on an individual level between the level of education
+and the value of the indicator.
+
+#### Quale misura di effetto è possibile stimare?
+
+The **odds ratio** is used to calculate the association, in this way we want to understand if different levels of
+education have a statistically significant impact on the calculated indicator.
+```{r}
+# The intervention variable is created based on the calculated indicator
+den$surgery <- ifelse(rownames(den) %in% rownames(num), 1, 0)
+```
+
+The odds ratio is calculated
+```{r}
+t <- twoby2(den$education,den$surgery)
+```
+The odds ratio is `r round(t$measures[2], digit=3)`, furthermore, the confidence interval contains the value 1
+and therefore the odds ratio is not statistically different from 1. The level of education therefore does not
+affect the event.
+
+
+#### Calculate the same effect measure, this time adjusted for the only *working* variable, using the Mantel Haenszel method.
+
+The three-dimensional contingency table is created considering also the work variable.
+```{r}
+cont_table <- table(education = den$education,
+                    intervento = den$surgery,
+                    work = den$work)
+
+cont_table
+```
+
+**Breslow-Day** homogeneity test is carried out
+```{r}
+BreslowDayTest(cont_table)
+```
+The **p-value** is greater than 0.05, therefore the null hypothesis of homogeneity between the groups cannot
+be rejected.
+
+**Mantel Haenszel**'s test is performed to obtain the value of his statistic, the combined p-value and odds ratio.
+```{r}
+mh_test <- mantelhaen.test(cont_table)
+mh_test
+```
+The statistic p-value is greater than 0.05. The null hypothesis is not rejected, namely that the OR of the two tables
+is not statistically different and the working variable does not affect the outcome.
+
+
+#### Estimate and interpret this effect measure, adjusted for all the available variables that you consider appropriate to include as potential confounders, using a logistic regression model.
+
+As possible confounding variables we consider: the age, the stage of the tumor and the hospital where the service was performed.
+```{r}
+model1 <- glm(surgery ~  age + factor(Stadio) + factor(ospedale),
+                     data = den, family = "binomial")
+summary(model1)
+```
+
+Calculation of odds ratios
+```{r}
+exp(cbind("OR" = coef(model1), confint.default(model1, level = 0.95)))
+```
+As for the stage, the fact of having a second stage tumor makes the intervention more likely within 60 days of
+the incidence, this is also confirmed by the confidence interval which does not contain the value 1.
+For all the other variables the difference in the values assumed is not statistically different.
+
+Another model was tried in which the age variable was categorized according to its value, three bands are
+identified: the first for age up to 50 years, the second for age up to 70 and the third for age over 70
+```{r}
+den$age_cat <- ifelse(den$age < 50, 1, ifelse(den$age < 70, 2, 3))
+
+model2 <- glm(surgery ~ factor(age_cat) + factor(Stadio) + factor(ospedale),
+                      data = den, family = "binomial")
+
+summary(model2)
+```
+
+The related odds ratios
+```{r}
+exp(cbind("OR" = coef(model2), confint.default(model2, level = 0.95)))
+```
+
+No particular differences are obtained between the two models.
