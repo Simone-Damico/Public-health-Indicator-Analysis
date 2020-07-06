@@ -13,9 +13,9 @@ library(DescTools)
 ### Import dataset
 ```{r}
 # import dataset
-df_anagrafica <- read.csv2("DatiAnagrafici.csv", sep = ";", header = TRUE, na="")
-df_tumors <- read.csv2("RegistroTumori.csv", sep = ";", header = TRUE, na="")
-df_sdo <- read.csv2("SDO.csv", sep = ";", header = TRUE, na="")
+df_anagrafica <- read.csv2("Datasets/DatiAnagrafici.csv", sep = ";", header = TRUE, na="")
+df_tumors <- read.csv2("Datasets/RegistroTumori.csv", sep = ";", header = TRUE, na="")
+df_sdo <- read.csv2("Datasets/SDO.csv", sep = ";", header = TRUE, na="")
 ```
 
 ### Point 1
