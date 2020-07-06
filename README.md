@@ -4,7 +4,7 @@ within 60 days from the date of diagnosis* is defined. The
 indicator for each hospital structure present in the data 
 is analyzed and the association at individual level between 
 the level of education and the work and the value of the indicator is 
-also assessed.
+also assessed. [Here](https://simone-damico.github.io/Public-health-Indicator-Analysis/) the complete code.
 
 ### Dataset description
 Three simulated datasets are available, two extracts from population 
